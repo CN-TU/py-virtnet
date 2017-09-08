@@ -6,7 +6,7 @@ Todo:
     * Implement like everything!
 """
 
-from . iproute import IPR
+from . iproute import IPDB
 
 class SwitchException(Exception):
     """Base Class for switch-based exceptions"""
@@ -30,12 +30,13 @@ class Switch(object):
     """
     def __init__(self, name: str) -> None:
         self.name = name
-        self.__index = None
+        self.__intf = None
+        self.start()
 
     @property
     def running(self) -> bool:
         """True if switch is running"""
-        return self.__index is not None
+        return self.__intf is not None
 
     def start(self) -> None:
         """Start switch
@@ -43,11 +44,9 @@ class Switch(object):
         Raises:
             SwitchUpException: If switch is already running.
         """
-        if self.__index is not None:
+        if self.__intf is not None:
             raise SwitchUpException()
-        IPR.link("add", ifname=self.name, kind="bridge", stp_state="0")
-        self.__index = IPR.link_lookup(ifname=self.name)[0]
-        IPR.link("set", index=self.__index, state="up")
+        self.__intf = IPDB.create(kind="bridge", ifname=self.name).up().commit()
 
     def stop(self) -> None:
         """Stop switch
@@ -55,6 +54,7 @@ class Switch(object):
         Raises:
             SwitchDownException: If switch is already stopped.
         """
-        if self.__index is None:
+        if self.__intf is None:
             raise SwitchDownException()
-        IPR.link("remove", index=self.__index)
+        self.__intf.down().remove().commit()
+        self.__intf = None

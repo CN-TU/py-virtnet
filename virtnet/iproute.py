@@ -1,5 +1,5 @@
 """This module holds the iproute2 socket"""
 
-import pyroute2.iproute
+import pyroute2.ipdb.main
 
-IPR = pyroute2.iproute.IPRoute()
+IPDB = pyroute2.ipdb.main.IPDB()

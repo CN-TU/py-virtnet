@@ -9,6 +9,7 @@ Todo:
 
 import os
 from pyroute2.netns.nslink import NetNS
+import pyroute2.ipdb.main
 
 class HostException(Exception):
     """Base Class for Host-based exceptions"""
@@ -36,11 +37,20 @@ class Host(object):
     def __init__(self, name: str) -> None:
         self.name = name
         self.__ns = None
+        self.__ipdb = None
+        self.start()
 
     @property
     def running(self) -> bool:
         """True if host is running"""
         return self.__ns is not None
+
+    @property
+    def ipdb(self) -> pyroute2.ipdb.main.IPDB:
+        """Return host IPDB"""
+        if not self.running:
+            raise HostDownException()
+        return self.__ipdb
 
     def start(self) -> None:
         """Start host
@@ -48,13 +58,13 @@ class Host(object):
         Raises:
             HostUpException: If host is already running.
         """
-        if self.__ns is None:
+        if self.__ns is not None:
             raise HostUpException()
-        # handle eexists error!
         try:
-            self.__ns = NetNS(self.name, flags=os.O_CREAT | os.O_EXCL)
+            self.__ns = NetNS(self.name)
         except FileExistsError:
             raise HostUpException()
+        self.__ipdb = pyroute2.ipdb.main.IPDB(nl=self.__ns)
 
     def stop(self) -> None:
         """Stop host
@@ -64,5 +74,8 @@ class Host(object):
         """
         if self.__ns is None:
             raise HostDownException()
+        self.__ipdb.release()
+        self.__ipdb = None
         self.__ns.close()
         self.__ns.remove()
+        self.__ns = None
