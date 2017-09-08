@@ -7,6 +7,7 @@ Todo:
 """
 
 import pyroute2.ipdb.main
+import pyroute2.ipdb.interfaces
 from . iproute import IPDB
 
 class InterfaceException(Exception):
@@ -33,9 +34,9 @@ class VirtualInterface(object):
     def __init__(self, name: str, main: pyroute2.ipdb.main.IPDB, peername: str,
                  peer: pyroute2.ipdb.main.IPDB) -> None:
         self.name = name
-        self.main = main
+        self.__main_ipdb = main
         self.peername = peername
-        self.peer = peer
+        self.__peer_ipdb = peer
         self.__intf = None
         self.__peer = None
         self.start()
@@ -44,6 +45,20 @@ class VirtualInterface(object):
     def running(self) -> bool:
         """True if interfaces exists"""
         return self.__intf is not None
+
+    @property
+    def peer(self) -> pyroute2.ipdb.interfaces.Interface:
+        """Return peer interface"""
+        if not self.running:
+            raise InterfaceDownException()
+        return self.__peer
+
+    @property
+    def main(self) -> pyroute2.ipdb.interfaces.Interface:
+        """Return main interface"""
+        if not self.running:
+            raise InterfaceDownException()
+        return self.__main
 
     def start(self) -> None:
         """Start interface
@@ -54,16 +69,16 @@ class VirtualInterface(object):
         if self.__intf is not None:
             raise InterfaceUpException()
         self.__intf = IPDB.create(ifname="virt0Master", kind="veth", peer="virt0Peer").commit()
-        if self.main is not IPDB:
-            with self.__intf as veth:
-                veth.net_ns_fd = self.main.nl.netns
-        if self.peer is not IPDB:
+        if self.__main_ipdb is not IPDB:
+            with IPDB.interfaces["virt0Master"] as veth:
+                veth.net_ns_fd = self.__main_ipdb.nl.netns
+        if self.__peer_ipdb is not IPDB:
             with IPDB.interfaces["virt0Peer"] as veth:
-                veth.net_ns_fd = self.peer.nl.netns
-        with self.peer.interfaces["virt0Peer"] as self.__peer:
+                veth.net_ns_fd = self.__peer_ipdb.nl.netns
+        with self.__peer_ipdb.interfaces["virt0Peer"] as self.__peer:
             self.__peer.ifname = self.peername
             self.__peer.up()
-        with self.main.interfaces["virt0Master"] as self.__intf:
+        with self.__main_ipdb.interfaces["virt0Master"] as self.__intf:
             self.__intf.ifname = self.name
             self.__intf.up()
 
@@ -76,6 +91,5 @@ class VirtualInterface(object):
         if self.__intf is None:
             raise InterfaceDownException()
         self.__intf.remove().commit()
-        self.__peer.remove().commit()
         self.__peer = None
         self.__intf = None

@@ -7,9 +7,13 @@ Todo:
     * Implement like everything!
 """
 
-import os
+from typing import Union
+
 from pyroute2.netns.nslink import NetNS
 import pyroute2.ipdb.main
+
+from . switch import Switch
+from . interface import VirtualInterface
 
 class HostException(Exception):
     """Base Class for Host-based exceptions"""
@@ -38,6 +42,7 @@ class Host(object):
         self.name = name
         self.__ns = None
         self.__ipdb = None
+        self.interfaces = []
         self.start()
 
     @property
@@ -51,6 +56,18 @@ class Host(object):
         if not self.running:
             raise HostDownException()
         return self.__ipdb
+
+    def connect(self, remote: Union[Switch, 'Host'], name: str, remotename: str = None) -> None:
+        """Connect host to switch or host"""
+        if remotename is None:
+            remotename = "{}{}".format(self.name, len(self.interfaces))
+        intf = VirtualInterface(name, self.ipdb, remotename, remote.ipdb)
+        self.interfaces.append(intf)
+        remote.attach_peer(intf)
+
+    def attach_peer(self, intf: VirtualInterface) -> None:
+        """Attach peer part of VirtualInterface"""
+        self.interfaces.append(intf)
 
     def start(self) -> None:
         """Start host
@@ -74,6 +91,9 @@ class Host(object):
         """
         if self.__ns is None:
             raise HostDownException()
+        for interface in self.interfaces:
+            if interface.running:
+                interface.stop()
         self.__ipdb.release()
         self.__ipdb = None
         self.__ns.close()

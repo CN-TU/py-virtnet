@@ -6,7 +6,9 @@ Todo:
     * Implement like everything!
 """
 
+import pyroute2.ipdb.main
 from . iproute import IPDB
+from . interface import VirtualInterface
 
 class SwitchException(Exception):
     """Base Class for switch-based exceptions"""
@@ -27,16 +29,31 @@ class Switch(object):
 
     Attributes:
         name: Name of the switch = interface name.
+        ipdb: IPDB
     """
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, ipdb: pyroute2.ipdb.main.IPDB = None) -> None:
         self.name = name
+        self.__ipdb = ipdb
+        if self.__ipdb is None:
+            self.__ipdb = IPDB
         self.__intf = None
+        self.interfaces = []
         self.start()
 
     @property
     def running(self) -> bool:
         """True if switch is running"""
         return self.__intf is not None
+
+    @property
+    def ipdb(self) -> pyroute2.ipdb.main.IPDB:
+        """Return switch IPDB"""
+        return self.__ipdb
+
+    def attach_peer(self, intf: VirtualInterface) -> None:
+        """Attach peer part of VirtualInterface"""
+        self.interfaces.append(intf)
+        self.__intf.add_port(intf.peer).commit()
 
     def start(self) -> None:
         """Start switch
