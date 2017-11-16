@@ -9,7 +9,7 @@ Todo:
 import pyroute2.ipdb.main
 import pyroute2.ipdb.interfaces
 from . iproute import IPDB
-from . container import Interface
+from . container import Interface, Link
 
 class InterfaceException(Exception):
     """Base Class for Interface-based exceptions"""
@@ -21,7 +21,31 @@ class InterfaceDownException(InterfaceException):
     """Interface is not running"""
 
 class VirtualInterface(Interface):
-    """Network Interface
+    """Virtual Network device
+
+    A veth interface.
+
+    Args:
+        name: Name of the interface.
+
+    Attributes:
+        name: Name of the interface.
+    """
+    def __init__(self, name: str, interface: pyroute2.ipdb.interfaces.Interface,
+                 ipdb: pyroute2.ipdb.main.IPDB, parent: 'VirtualLink') -> None:
+        self.parent = parent
+        super().__init__(name, interface, ipdb)
+
+    def start(self) -> None:
+        with self.interface as intf:
+            intf.ifname = self.name
+            intf.up()
+
+    def stop(self) -> None:
+        self.interface.remove().commit()
+
+class VirtualLink(Link):
+    """Network link consisting of two virtual devices
 
     A veth interface.
 
@@ -71,12 +95,10 @@ class VirtualInterface(Interface):
         if self.ipdb[1] is not IPDB:
             with IPDB.interfaces["virt0Peer"] as veth:
                 veth.net_ns_fd = self.ipdb[1].nl.netns
-        with self.ipdb[1].interfaces["virt0Peer"] as self.__peer:
-            self.__peer.ifname = self.peername
-            self.__peer.up()
-        with self.ipdb[0].interfaces["virt0Master"] as self.__intf:
-            self.__intf.ifname = self.name
-            self.__intf.up()
+        self.__peer = VirtualInterface(self.peername, self.ipdb[1].interfaces["virt0Peer"],
+                                       self.ipdb[1], self)
+        self.__intf = VirtualInterface(self.name, self.ipdb[0].interfaces["virt0Master"],
+                                       self.ipdb[0], self)
 
     def stop(self) -> None:
         """Stop interface
@@ -86,6 +108,6 @@ class VirtualInterface(Interface):
         """
         if self.__intf is None:
             raise InterfaceDownException()
-        self.__intf.remove().commit()
+        self.__intf.stop()
         self.__peer = None
         self.__intf = None

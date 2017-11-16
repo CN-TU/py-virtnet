@@ -7,10 +7,9 @@ Todo:
     * Implement like everything!
 """
 
-from typing import Type
 from pyroute2.netns.nslink import NetNS
 import pyroute2.ipdb.main
-from . container import InterfaceContainer, Interface
+from . container import InterfaceContainer
 
 class HostException(Exception):
     """Base Class for Host-based exceptions"""

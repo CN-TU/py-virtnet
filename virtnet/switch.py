@@ -44,7 +44,7 @@ class Switch(InterfaceContainer):
 
     def attach_interface(self, intf: Interface) -> None:
         """Attach peer part of VirtualInterface"""
-        self.__intf.add_port(intf.peer).commit()
+        self.__intf.add_port(intf.peer.interface).commit()
         super().attach_interface(intf)
 
     def start(self) -> None:

@@ -46,8 +46,26 @@ class BaseContainer(ABC):
         """Stop the device"""
         pass
 
-class Interface(BaseContainer):
+class Interface(BaseContainer): # pylint: disable=abstract-method
     """Interface is the base for all Interfaces
+        Args:
+        name: Name for this Interface.
+        ipdb: Instance to IPDB, this container belongs to
+
+    Attributes:
+        name: Name of this Interface.
+        interface: pyroute2 interface"""
+    def __init__(self, name: str, interface: pyroute2.ipdb.interfaces.Interface,
+                 ipdb: pyroute2.ipdb.main.IPDB = None) -> None:
+        self.interface = interface
+        super().__init__(name, ipdb)
+
+    @property
+    def running(self) -> bool:
+        return self.interface is not None
+
+class Link(BaseContainer):
+    """Link is the base for a link
         Args:
         name: Name for this thing.
         ipdb: Instances to two IPDBs, this container belongs to
@@ -70,7 +88,7 @@ class Interface(BaseContainer):
         """Return main interface"""
         raise NotImplementedError
 
-class InterfaceContainer(BaseContainer):
+class InterfaceContainer(BaseContainer): # pylint: disable=abstract-method
     """InterfaceContainer provides attaching Interfaces to a container"""
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

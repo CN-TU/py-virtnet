@@ -6,4 +6,4 @@ network topology with the help of pyroute2
 
 from . switch import Switch
 from . host import Host
-from . interface import VirtualInterface
+from . interface import VirtualLink
