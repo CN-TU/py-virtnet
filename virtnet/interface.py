@@ -10,6 +10,7 @@ import pyroute2.ipdb.main
 import pyroute2.ipdb.interfaces
 from . iproute import IPDB
 from . container import Interface, Link
+from . context import Manager
 
 class InterfaceException(Exception):
     """Base Class for Interface-based exceptions"""
@@ -56,9 +57,10 @@ class VirtualLink(Link):
         name: Name of the interface.
         peername: Name of peer interface.
     """
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, manager: Manager = None, **kwargs) -> None:
         self.__intf = None
         self.__peer = None
+        self.__manager = manager
         super().__init__(*args, **kwargs)
 
     @property
@@ -99,6 +101,7 @@ class VirtualLink(Link):
                                        self.ipdb[1], self)
         self.__intf = VirtualInterface(self.name, self.ipdb[0].interfaces["virt0Master"],
                                        self.ipdb[0], self)
+        self.__manager.register(self)
 
     def stop(self) -> None:
         """Stop interface
@@ -111,3 +114,4 @@ class VirtualLink(Link):
         self.__intf.stop()
         self.__peer = None
         self.__intf = None
+        self.__manager.unregister(self)

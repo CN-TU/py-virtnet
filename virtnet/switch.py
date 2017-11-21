@@ -9,6 +9,7 @@ Todo:
 import pyroute2.ipdb.main
 from . iproute import IPDB
 from . container import InterfaceContainer, Interface
+from . context import Manager
 
 class SwitchException(Exception):
     """Base Class for switch-based exceptions"""
@@ -31,10 +32,12 @@ class Switch(InterfaceContainer):
         name: Name of the switch = interface name.
         ipdb: IPDB
     """
-    def __init__(self, name: str, ipdb: pyroute2.ipdb.main.IPDB = None) -> None:
+    def __init__(self, name: str, ipdb: pyroute2.ipdb.main.IPDB = None,
+                 manager: Manager = None) -> None:
         if ipdb is None:
             ipdb = IPDB
         self.__intf = None
+        self.__manager = manager
         super().__init__(name, ipdb)
 
     @property
@@ -44,7 +47,7 @@ class Switch(InterfaceContainer):
 
     def attach_interface(self, intf: Interface) -> None:
         """Attach peer part of VirtualInterface"""
-        self.__intf.add_port(intf.peer.interface).commit()
+        self.__intf.add_port(intf.interface).commit()
         super().attach_interface(intf)
 
     def start(self) -> None:
@@ -56,6 +59,7 @@ class Switch(InterfaceContainer):
         if self.__intf is not None:
             raise SwitchUpException()
         self.__intf = IPDB.create(kind="bridge", ifname=self.name).up().commit()
+        self.__manager.register(self)
 
     def stop(self) -> None:
         """Stop switch
@@ -67,3 +71,4 @@ class Switch(InterfaceContainer):
             raise SwitchDownException()
         self.__intf.down().remove().commit()
         self.__intf = None
+        self.__manager.unregister(self)

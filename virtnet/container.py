@@ -4,9 +4,11 @@ This module build the base for every device and all the interfaces.
 """
 
 from typing import Union, Sequence, Type
+import ipaddress
 import collections
 from abc import ABC, abstractmethod
 import pyroute2.ipdb.main
+from . address import Network
 
 class BaseContainer(ABC):
     """BaseContainer provides base functionality like naming, starting, stopping.
@@ -64,6 +66,17 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
     def running(self) -> bool:
         return self.interface is not None
 
+    def add_ip(self, address: Union[ipaddress.IPv4Interface, ipaddress.IPv6Interface,
+                                    Network]) -> None:
+        "Add ip to interface"
+        if isinstance(address, Network):
+            address = next(address)
+        self.interface.add_ip(address.with_prefixlen).commit()
+
+    def del_ip(self, address: Union[ipaddress.IPv4Interface, ipaddress.IPv6Interface]) -> None:
+        "Remove ip from interface"
+        self.interface.del_ip(address.with_prefixlen).commit()
+
 class Link(BaseContainer):
     """Link is the base for a link
         Args:
@@ -99,10 +112,14 @@ class InterfaceContainer(BaseContainer): # pylint: disable=abstract-method
         self.interfaces[intf.name] = intf
 
     def connect(self, intf: Type[Interface], remote: 'InterfaceContainer', name: str,
-                remotename: str = None) -> None:
+                remotename: str = None) -> Link:
         """Connect InterfaceContainer with another InterfaceContainer"""
         if remotename is None:
             remotename = "{}{}".format(self.name, len(self.interfaces))
         intf = intf(name, [self.ipdb, remote.ipdb], remotename)
-        self.attach_interface(intf)
-        remote.attach_interface(intf)
+        self.attach_interface(intf.main)
+        remote.attach_interface(intf.peer)
+        return intf
+
+    def __getitem__(self, key: str) -> Interface:
+        return self.interfaces[key]

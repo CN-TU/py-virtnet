@@ -10,6 +10,7 @@ Todo:
 from pyroute2.netns.nslink import NetNS
 import pyroute2.ipdb.main
 from . container import InterfaceContainer
+from . context import Manager
 
 class HostException(Exception):
     """Base Class for Host-based exceptions"""
@@ -34,9 +35,10 @@ class Host(InterfaceContainer):
     Attributes:
         name: Name of the host, which is also the name of the network namespace.
     """
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, manager: Manager = None) -> None:
         self.__ns = None
         self.__ipdb = None
+        self.__manager = manager
         super().__init__(name)
 
     @property
@@ -64,6 +66,8 @@ class Host(InterfaceContainer):
         except FileExistsError:
             raise HostUpException()
         self.__ipdb = pyroute2.ipdb.main.IPDB(nl=self.__ns)
+        self.__ipdb.interfaces["lo"].up().commit()
+        self.__manager.register(self)
 
     def stop(self) -> None:
         """Stop host
@@ -73,11 +77,9 @@ class Host(InterfaceContainer):
         """
         if self.__ns is None:
             raise HostDownException()
-        for interface in self.interfaces.values():
-            if interface.running:
-                interface.stop()
         self.__ipdb.release()
         self.__ipdb = None
         self.__ns.close()
         self.__ns.remove()
         self.__ns = None
+        self.__manager.unregister(self)
