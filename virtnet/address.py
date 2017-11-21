@@ -10,7 +10,8 @@ from typing import Union
 import ipaddress
 from . context import Manager
 
-class InterfaceIter(object):
+class InterfaceIter(object): #pylint: disable=too-few-public-methods
+    """Iterator over Network returning Interfaces. This works for IPv6 and IPv4."""
     def __init__(self, network: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]) -> None:
         self.network = network
         self.hosts = network.hosts()
@@ -25,7 +26,7 @@ class InterfaceIter(object):
     def __next__(self) -> Union[ipaddress.IPv4Interface, ipaddress.IPv6Interface]:
         return self.__cls((int(next(self.hosts)), self.network.prefixlen))
 
-class Network(object):
+class Network(object): #pylint: disable=too-few-public-methods
     """Network represents a network for allocating addresses from.
 
     Args:
@@ -35,6 +36,7 @@ class Network(object):
         network: The ipv4 or ipv6 network
     """
     def __init__(self, network: str, manager: Manager = None) -> None:
+        #pylint: disable=unused-argument
         self.network = ipaddress.ip_network(network)
         self.hosts = InterfaceIter(self.network)
 

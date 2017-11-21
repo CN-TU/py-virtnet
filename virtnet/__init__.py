@@ -14,6 +14,7 @@ from . context import Manager
 def _make_creator(obj):
     creator = globals()[obj]
     def create(self, *args, **kwargs):
+        "Create a new object with the manager as first argument"
         return creator(*args, **kwargs, manager=self)
     return create
 
