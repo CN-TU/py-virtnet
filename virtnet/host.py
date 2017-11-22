@@ -7,10 +7,18 @@ Todo:
     * Implement like everything!
 """
 
+import subprocess
+import socket
+import pathlib
+import os
+import errno
+import shutil
 from pyroute2.netns.nslink import NetNS
+from pyroute2.netns import setns
 import pyroute2.ipdb.main
 from . container import InterfaceContainer
 from . context import Manager
+from . import syscalls
 
 class HostException(Exception):
     """Base Class for Host-based exceptions"""
@@ -23,6 +31,34 @@ class HostDownException(HostException):
 
 class NamespaceExistsException(HostException):
     """Namespace with this name already exists"""
+
+ETC_DIR = pathlib.Path('/etc')
+NETNS_ETC_DIR = ETC_DIR / 'netns'
+
+DEFAULT_HOSTS = b"""127.0.0.1	localhost.localdomain	localhost
+::1		localhost.localdomain	localhost
+
+"""
+
+def _setup_etc(name: str):
+    hostdir = NETNS_ETC_DIR / name
+    try:
+        os.makedirs(hostdir)
+    except OSError as err:
+        if err.errno != errno.EEXIST:
+            raise
+
+    ret = {}
+
+    hosts = hostdir / "hosts"
+    hosts_etc = ETC_DIR / "hosts"
+    hosts.write_bytes(DEFAULT_HOSTS)
+    ret["hosts"] = (hosts, hosts_etc)
+
+    return ret
+
+def _remove_etc(name: str) -> None:
+    shutil.rmtree(NETNS_ETC_DIR / name, ignore_errors=True)
 
 class Host(InterfaceContainer):
     """Host in a network container.
@@ -39,6 +75,7 @@ class Host(InterfaceContainer):
         self.__ns = None
         self.__ipdb = None
         self.__manager = manager
+        self.__files = {}
         super().__init__(name)
 
     @property
@@ -65,9 +102,44 @@ class Host(InterfaceContainer):
             self.__ns = NetNS(self.name)
         except FileExistsError:
             raise HostUpException()
+        self.__files = _setup_etc(self.name)
         self.__ipdb = pyroute2.ipdb.main.IPDB(nl=self.__ns)
         self.__ipdb.interfaces["lo"].up().commit()
         self.__manager.register(self)
+
+    def Popen(self, *args, **kwargs): #pylint: disable=invalid-name
+        """Popen inside the host"""
+
+        mounts = tuple((bytes(src), bytes(dst)) for src, dst in self.__files.values())
+        def change_ns():
+            """Setup the namespace"""
+            # This is borrowed from iproute2 and looks more sane than pyroute2
+            # Let's move ourselves to the target network namespace
+            try:
+                # Change to network namespace
+                setns(self.name, flags=0)
+
+                # Unshare the mount namespace (preparation for following steps)
+                # Unshare UTS namespace for hostname
+                syscalls.unshare(syscalls.CLONE_NEWNS|syscalls.CLONE_NEWUTS)
+
+                # Make our mounts slave (otherwise unshare doesn't help with shared mounts)
+                syscalls.mount(b"none", b"/", None, syscalls.MS_REC|syscalls.MS_SLAVE, None)
+
+                # Mount sysfs that belongs to this network namespace
+                syscalls.umount2(b"/sys", syscalls.MNT_DETACH)
+                syscalls.mount(b"none", b"/sys", b"sysfs", 0, None)
+
+                # Set the hostname
+                socket.sethostname(self.name)
+
+                # fake hosts files etc
+                for src, dst in mounts:
+                    syscalls.mount(src, dst, b"none", syscalls.MS_BIND, None)
+            except Exception as err:
+                print(err)
+                raise
+        return subprocess.Popen(*args, preexec_fn=change_ns, **kwargs)
 
     def stop(self) -> None:
         """Stop host
@@ -81,5 +153,6 @@ class Host(InterfaceContainer):
         self.__ipdb = None
         self.__ns.close()
         self.__ns.remove()
+        _remove_etc(self.name)
         self.__ns = None
         self.__manager.unregister(self)
