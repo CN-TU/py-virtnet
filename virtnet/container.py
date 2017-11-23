@@ -3,7 +3,7 @@
 This module build the base for every device and all the interfaces.
 """
 
-from typing import Union, Sequence, Type
+from typing import Union, Sequence, Type, List, Tuple
 import ipaddress
 import collections
 from abc import ABC, abstractmethod
@@ -48,6 +48,17 @@ class BaseContainer(ABC):
         """Stop the device"""
         pass
 
+    def get_hostnames(self) -> List[Tuple[str, Union[ipaddress.IPv4Address,
+                                                     ipaddress.IPv6Address]]]:
+        # pylint: disable=no-self-use
+        "Return a list of (hostname, address) pairs"
+        return []
+
+    def set_hosts(self, hosts: List[Tuple[str, Union[ipaddress.IPv4Address,
+                                                     ipaddress.IPv6Address]]]):
+        "Set listed hosts as hosts file."
+        pass
+
 class Interface(BaseContainer): # pylint: disable=abstract-method
     """Interface is the base for all Interfaces
         Args:
@@ -60,6 +71,7 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
     def __init__(self, name: str, interface: pyroute2.ipdb.interfaces.Interface,
                  ipdb: pyroute2.ipdb.main.IPDB = None) -> None:
         self.interface = interface
+        self.addresses = set()
         super().__init__(name, ipdb)
 
     @property
@@ -71,10 +83,12 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
         "Add ip to interface"
         if isinstance(address, Network):
             address = next(address)
+        self.addresses.add(address)
         self.interface.add_ip(address.with_prefixlen).commit()
 
     def del_ip(self, address: Union[ipaddress.IPv4Interface, ipaddress.IPv6Interface]) -> None:
         "Remove ip from interface"
+        self.addresses.remove(address)
         self.interface.del_ip(address.with_prefixlen).commit()
 
 class Link(BaseContainer):

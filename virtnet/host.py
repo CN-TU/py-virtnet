@@ -156,3 +156,14 @@ class Host(InterfaceContainer):
         _remove_etc(self.name)
         self.__ns = None
         self.__manager.unregister(self)
+
+    def set_hosts(self, hosts):
+        with self.__files["hosts"][0].open('wb') as hostfile:
+            hostfile.write(DEFAULT_HOSTS)
+            for host, address in hosts:
+                hostfile.write("{}\t{}\n".format(address, host).encode())
+
+    def get_hostnames(self):
+        return [(self.name, address.ip)
+                for interface in self.interfaces.values()
+                for address in interface.addresses]

@@ -17,6 +17,8 @@ def run(vnet):
         host["eth0"].add_ip(network)
         hosts.append(host)
 
+    vnet.update_hosts()
+
     with hosts[0].Popen(["ip", "addr"]):
         pass
     print("-"*80)
@@ -42,6 +44,9 @@ def run(vnet):
     for i in range(3):
         with hosts[i].Popen(["uname", "-a"]):
             pass
+    print("-"*80)
+    with hosts[0].Popen(["ping", "-c", "3", "host2"]):
+        pass
     print("-"*80)
     input("Done")
 
