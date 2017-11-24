@@ -45,9 +45,8 @@ def run(vnet):
         with hosts[i].Popen(["uname", "-a"]):
             pass
     print("-"*80)
-    with hosts[0].Popen(["ping", "-c", "3", "host2"]):
+    with hosts[0].Popen(["ping", "-c", "1", "host2"]):
         pass
-    print("-"*80)
     input("Done")
 
 with virtnet.Manager() as context:
