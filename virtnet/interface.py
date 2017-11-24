@@ -45,6 +45,9 @@ class VirtualInterface(Interface):
     def stop(self) -> None:
         self.interface.remove().commit()
 
+    def tc(self, *args, **kwargs):
+        self.ipdb.nl.tc(*args, index=self.interface.index, **kwargs)
+
 class VirtualLink(Link):
     """Network link consisting of two virtual devices
 
