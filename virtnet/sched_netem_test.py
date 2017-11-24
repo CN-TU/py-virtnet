@@ -110,8 +110,6 @@ def get_parameters(kwarg):
 
     if 'dist' in kwarg:
         opts['attrs'].append(['TCA_NETEM_DELAY_DIST', make_inv_cdf(kwarg['dist'])])
-    # TODO
-    # delay distribution (dist_size, dist_data)
     return opts
 
 
