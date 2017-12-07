@@ -167,3 +167,18 @@ class Host(InterfaceContainer):
         return [(self.name, address.ip)
                 for interface in self.interfaces.values()
                 for address in interface.addresses]
+
+class Router(Host):
+    """Router extends Host with some additional settings a router needs
+
+    Args:
+        name: Name for the host, which is the name for the network namespace.
+
+    Attributes:
+        name: Name of the host, which is also the name of the network namespace."""
+    def __init__(self, *arg, **kwarg):
+        super().__init__(*arg, **kwarg)
+        # no simple way to open files in the network namespace :(
+        self.Popen(["/usr/bin/sysctl", "-w", "net.ipv4.ip_forward=1",
+                    "net.ipv4.conf.default.rp_filter=0"], stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL).wait()
