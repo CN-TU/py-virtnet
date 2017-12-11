@@ -4,11 +4,19 @@ This module build the base for every device and all the interfaces.
 """
 
 from typing import Union, Sequence, Type, List, Tuple
+from enum import Enum, auto
 import ipaddress
 import collections
 from abc import ABC, abstractmethod
 import pyroute2.ipdb.main
 from . address import Network
+
+class RouteDirection(Enum):
+    """Route directon behaviour on connect"""
+    DEFAULT = auto()
+    NONE = auto()
+    INWARD = auto()
+    OUTWARD = auto()
 
 class BaseContainer(ABC):
     """BaseContainer provides base functionality like naming, starting, stopping.
@@ -64,14 +72,17 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
         Args:
         name: Name for this Interface.
         ipdb: Instance to IPDB, this container belongs to
+        route: routing properties for this link.
 
     Attributes:
         name: Name of this Interface.
-        interface: pyroute2 interface"""
+        interface: pyroute2 interface.
+        route: routing properties for this link."""
     def __init__(self, name: str, interface: pyroute2.ipdb.interfaces.Interface,
-                 ipdb: pyroute2.ipdb.main.IPDB = None) -> None:
+                 ipdb: pyroute2.ipdb.main.IPDB = None, route: RouteDirection = None) -> None:
         self.interface = interface
         self.addresses = set()
+        self.route = route
         super().__init__(name, ipdb)
 
     @property
@@ -96,11 +107,15 @@ class Link(BaseContainer):
         Args:
         name: Name for this thing.
         ipdb: Instances to two IPDBs, this container belongs to
+        route: routing properties for this link.
 
     Attributes:
-        name: Name of this thing."""
-    def __init__(self, name: str, ipdb: Sequence[pyroute2.ipdb.main.IPDB], peername: str) -> None:
+        name: Name of this thing.
+        route: routing properties for this link."""
+    def __init__(self, name: str, ipdb: Sequence[pyroute2.ipdb.main.IPDB], peername: str,
+                 route: RouteDirection = None) -> None:
         self.peername = peername
+        self.route = route
         super().__init__(name, ipdb)
 
     @property
@@ -121,17 +136,44 @@ class InterfaceContainer(BaseContainer): # pylint: disable=abstract-method
         super().__init__(*args, **kwargs)
         self.interfaces = collections.OrderedDict()
 
+    @property
+    def network(self):
+        """Return a network to draw addresses from upon connect"""
+        return None
+
+    @property
+    def router(self) -> bool:
+        """Return true if container is a router"""
+        return False
+
     def attach_interface(self, intf: Interface) -> None:
         """Attach existing interface to this container"""
         self.interfaces[intf.name] = intf
 
     def connect(self, intf: Type[Interface], remote: 'InterfaceContainer', name: str,
-                remotename: str = None) -> Link:
+                remotename: str = None, route: RouteDirection = RouteDirection.DEFAULT) -> Link:
         """Connect InterfaceContainer with another InterfaceContainer"""
         if remotename is None:
             remotename = "{}{}".format(self.name, len(self.interfaces))
-        intf = intf(name, [self.ipdb, remote.ipdb], remotename)
+        intf = intf(name, [self.ipdb, remote.ipdb], remotename, route=route)
         self.attach_interface(intf.main)
+
+        network = remote.network
+        if network is not None:
+            router = network.router
+            if self.router:
+                if route is RouteDirection.DEFAULT and router is not None:
+                    intf.main.add_ip(network.router_interface)
+                else:
+                    intf.main.add_ip(network)
+            else:
+                intf.main.add_ip(network)
+                if route is RouteDirection.DEFAULT:
+                    if router is not None:
+                        routes = self.ipdb.routes
+                        if 'default' not in routes:
+                            routes.add({'dst': 'default', 'gateway': str(router)}).commit()
+
         remote.attach_interface(intf.peer)
         return intf
 

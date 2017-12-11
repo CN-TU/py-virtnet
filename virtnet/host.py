@@ -182,3 +182,8 @@ class Router(Host):
         self.Popen(["/usr/bin/sysctl", "-w", "net.ipv4.ip_forward=1",
                     "net.ipv4.conf.default.rp_filter=0"], stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL).wait()
+
+    @property
+    def router(self) -> bool:
+        """Return true if container is a router"""
+        return True

@@ -1,17 +1,17 @@
 """Example file for testing
 
-This creates a smallt testnet with ipaddresses from 192.168.0.0/24,
-one switch, and three hosts.
+This creates a smallt testnet with two hosts belonging to two distinct networks, which are connected
+via seperate switches with a router.
 """
 
 import virtnet
 
 def run(vnet):
     "Main functionality"
-    network1 = vnet.Network("192.168.0.0/24")
-    network2 = vnet.Network("10.0.0.0/24")
-    switch1 = vnet.Switch("sw1")
-    switch2 = vnet.Switch("sw2")
+    network1 = vnet.Network("192.168.0.0/24", router=1)
+    network2 = vnet.Network("10.0.0.0/24", router=2)
+    switch1 = vnet.Switch("sw1", network=network1)
+    switch2 = vnet.Switch("sw2", network=network2)
     host1 = vnet.Host("host1")
     host2 = vnet.Host("host2")
     router = vnet.Router("router")
@@ -19,14 +19,6 @@ def run(vnet):
     router.connect(vnet.VirtualLink, switch1, "eth0")
     router.connect(vnet.VirtualLink, switch2, "eth1")
     host2.connect(vnet.VirtualLink, switch2, "eth0")
-    router["eth0"].add_ip(network1)
-    host1["eth0"].add_ip(network1)
-    router["eth1"].add_ip(network2)
-    host2["eth0"].add_ip(network2)
-
-    host1.ipdb.routes.add({'dst': 'default', 'gateway': '192.168.0.1'}).commit()
-
-    host2.ipdb.routes.add({'dst': 'default', 'gateway': '10.0.0.1'}).commit()
 
     vnet.update_hosts()
 
