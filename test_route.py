@@ -23,6 +23,7 @@ def run(vnet):
     vnet.update_hosts()
 
     host1.Popen(["ping", "-c", "3", "host2"]).wait()
+    host1.Popen(["traceroute", "host2"]).wait()
     input("Done")
 
 with virtnet.Manager() as context:

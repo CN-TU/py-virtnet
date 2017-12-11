@@ -9,7 +9,7 @@ Todo:
 import pyroute2.ipdb.main
 import pyroute2.ipdb.interfaces
 from . iproute import IPDB
-from . container import Interface, Link
+from . container import Interface, Link, InterfaceContainer
 from . context import Manager
 
 class InterfaceException(Exception):
@@ -45,7 +45,12 @@ class VirtualInterface(Interface):
     def stop(self) -> None:
         self.interface.remove().commit()
 
+    def peer(self) -> InterfaceContainer:
+        "return peer of this link"
+        return self.parent.partner(self)
+
     def tc(self, *args, **kwargs):
+        "call tc on this interface"
         self.ipdb.nl.tc(*args, index=self.interface.index, **kwargs)
 
 class VirtualLink(Link):
@@ -65,6 +70,8 @@ class VirtualLink(Link):
         self.__peer = None
         self.__manager = manager
         super().__init__(*args, **kwargs)
+        self.__partners = {self.__peer: (self.peers[0], self.__intf),
+                           self.__intf: (self.peers[1], self.__peer)}
 
     @property
     def running(self) -> bool:
@@ -85,6 +92,10 @@ class VirtualLink(Link):
             raise InterfaceDownException()
         return self.__intf
 
+    def partner(self, interface):
+        "return peer of this link"
+        return self.__partners[interface]
+
     def start(self) -> None:
         """Start interface
 
@@ -100,10 +111,20 @@ class VirtualLink(Link):
         if self.ipdb[1] is not IPDB:
             with IPDB.interfaces["virt0Peer"] as veth:
                 veth.net_ns_fd = self.ipdb[1].nl.netns
-        self.__peer = VirtualInterface(self.peername, self.ipdb[1].interfaces["virt0Peer"],
-                                       self.ipdb[1], self)
-        self.__intf = VirtualInterface(self.name, self.ipdb[0].interfaces["virt0Master"],
-                                       self.ipdb[0], self)
+        while True:
+            try:
+                self.__peer = VirtualInterface(self.peername, self.ipdb[1].interfaces["virt0Peer"],
+                                               self.ipdb[1], self)
+            except KeyError:
+                continue
+            break
+        while True:
+            try:
+                self.__intf = VirtualInterface(self.name, self.ipdb[0].interfaces["virt0Master"],
+                                               self.ipdb[0], self)
+            except KeyError:
+                continue
+            break
         self.__manager.register(self)
 
     def stop(self) -> None:

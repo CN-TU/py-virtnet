@@ -50,6 +50,11 @@ class Switch(InterfaceContainer):
         return self.__intf is not None
 
     @property
+    def switch(self) -> bool:
+        """Return true if container is a switch"""
+        return True
+
+    @property
     def network(self):
         """Return a network to draw addresses from upon connect"""
         return self.__network

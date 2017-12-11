@@ -36,6 +36,16 @@ class BaseContainer(ABC):
         self.start()
 
     @property
+    def router(self) -> bool:
+        """Return true if container is a router"""
+        return False
+
+    @property
+    def switch(self) -> bool:
+        """Return true if container is a switch"""
+        return False
+
+    @property
     @abstractmethod
     def running(self) -> bool:
         """Returns true if this device is running"""
@@ -112,11 +122,12 @@ class Link(BaseContainer):
     Attributes:
         name: Name of this thing.
         route: routing properties for this link."""
-    def __init__(self, name: str, ipdb: Sequence[pyroute2.ipdb.main.IPDB], peername: str,
+    def __init__(self, name: str, peers: Sequence["InterfaceContainer"], peername: str,
                  route: RouteDirection = None) -> None:
         self.peername = peername
         self.route = route
-        super().__init__(name, ipdb)
+        self.peers = peers
+        super().__init__(name, list(obj.ipdb for obj in peers))
 
     @property
     @abstractmethod
@@ -141,11 +152,6 @@ class InterfaceContainer(BaseContainer): # pylint: disable=abstract-method
         """Return a network to draw addresses from upon connect"""
         return None
 
-    @property
-    def router(self) -> bool:
-        """Return true if container is a router"""
-        return False
-
     def attach_interface(self, intf: Interface) -> None:
         """Attach existing interface to this container"""
         self.interfaces[intf.name] = intf
@@ -155,7 +161,7 @@ class InterfaceContainer(BaseContainer): # pylint: disable=abstract-method
         """Connect InterfaceContainer with another InterfaceContainer"""
         if remotename is None:
             remotename = "{}{}".format(self.name, len(self.interfaces))
-        intf = intf(name, [self.ipdb, remote.ipdb], remotename, route=route)
+        intf = intf(name, [self, remote], remotename, route=route)
         self.attach_interface(intf.main)
 
         network = remote.network
