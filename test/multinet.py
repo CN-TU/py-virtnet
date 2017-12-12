@@ -3,6 +3,9 @@
 This creates several small testnetworks and connects those via routers.
 """
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 import collections
 import virtnet
 

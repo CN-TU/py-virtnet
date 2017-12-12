@@ -4,6 +4,9 @@ This creates a smallt testnet with ipaddresses from 192.168.0.0/24,
 one switch, and three hosts.
 """
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 import virtnet
 
 def run(vnet):

@@ -4,6 +4,9 @@ This creates a smallt testnet with two hosts belonging to two distinct networks,
 via seperate switches with a router.
 """
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 import virtnet
 
 def run(vnet):
