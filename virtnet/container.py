@@ -95,6 +95,12 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
         self.route = route
         super().__init__(name, ipdb)
 
+    def set_name(self, name:str):
+        """Set new name"""
+        with self.interface as intf:
+            intf.name = name
+        self.name = name
+
     @property
     def running(self) -> bool:
         return self.interface is not None
