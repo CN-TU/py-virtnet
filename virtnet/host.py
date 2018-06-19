@@ -179,7 +179,7 @@ class Router(Host):
     def __init__(self, *arg, **kwarg):
         super().__init__(*arg, **kwarg)
         # no simple way to open files in the network namespace :(
-        self.Popen(["/usr/bin/sysctl", "-w", "net.ipv4.ip_forward=1",
+        self.Popen(["sysctl", "-w", "net.ipv4.ip_forward=1",
                     "net.ipv4.conf.default.rp_filter=0"], stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL).wait()
 
