@@ -56,6 +56,10 @@ class BaseContainer(ABC):
         """Returns ipdb of this device"""
         return self.__ipdb
 
+    @ipdb.setter
+    def ipdb(self, value):
+        self.__ipdb = value
+
     @abstractmethod
     def start(self) -> None:
         """Starts up device"""
@@ -100,6 +104,19 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
         with self.interface as intf:
             intf.name = name
         self.name = name
+
+    def move_to(self, container):
+        """Move interface to container"""
+        with self.interface as intf:
+            intf.net_ns_fd = container.ipdb.nl.netns
+        container.attach_interface(self)
+        self.ipdb = container.ipdb
+        while True:
+            try:
+                self.interface = self.ipdb.interfaces[self.name]
+            except KeyError:
+                continue
+            break
 
     @property
     def running(self) -> bool:

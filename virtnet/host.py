@@ -16,6 +16,7 @@ import shutil
 from pyroute2.netns.nslink import NetNS
 from pyroute2.netns import setns
 import pyroute2.ipdb.main
+from . iproute import IPDB
 from . container import InterfaceContainer
 from . context import Manager
 from . import syscalls
@@ -59,6 +60,60 @@ def _setup_etc(name: str):
 
 def _remove_etc(name: str) -> None:
     shutil.rmtree(NETNS_ETC_DIR / name, ignore_errors=True)
+
+class PhysicalHost(InterfaceContainer):
+    """Physical Host.
+
+    This is the default namespace.
+
+    Args:
+        name: Name for the host.
+
+    Attributes:
+        name: Name of the host.
+    """
+    def __init__(self, name: str, manager: Manager = None) -> None:
+        self.__ns = None
+        self.__ipdb = IPDB
+        super().__init__(name)
+
+    @property
+    def running(self) -> bool:
+        """True if host is running"""
+        return self.__ns is not None
+
+    @property
+    def ipdb(self) -> pyroute2.ipdb.main.IPDB:
+        """Return host IPDB"""
+        return self.__ipdb
+
+    def start(self) -> None:
+        """Start host
+
+        Raises:
+            HostUpException: If host is already running.
+        """
+        pass
+
+    def Popen(self, *args, **kwargs): #pylint: disable=invalid-name
+        """Popen inside the host"""
+
+        return subprocess.Popen(*args, **kwargs)
+
+    def stop(self) -> None:
+        """Stop host
+
+        Raises:
+            HostDownException: If host is already stopped.
+        """
+        pass
+
+    def set_hosts(self, hosts):
+        pass
+
+    def get_hostnames(self):
+        return []
+
 
 class Host(InterfaceContainer):
     """Host in a network container.
@@ -105,7 +160,8 @@ class Host(InterfaceContainer):
         self.__files = _setup_etc(self.name)
         self.__ipdb = pyroute2.ipdb.main.IPDB(nl=self.__ns)
         self.__ipdb.interfaces["lo"].up().commit()
-        self.__manager.register(self)
+        if self.__manager is not None:
+            self.__manager.register(self)
 
     def Popen(self, *args, **kwargs): #pylint: disable=invalid-name
         """Popen inside the host"""
@@ -155,7 +211,8 @@ class Host(InterfaceContainer):
         self.__ns.remove()
         _remove_etc(self.name)
         self.__ns = None
-        self.__manager.unregister(self)
+        if self.__manager is not None:
+            self.__manager.unregister(self)
 
     def set_hosts(self, hosts):
         with self.__files["hosts"][0].open('wb') as hostfile:

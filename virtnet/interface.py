@@ -21,6 +21,29 @@ class InterfaceUpException(InterfaceException):
 class InterfaceDownException(InterfaceException):
     """Interface is not running"""
 
+class PhysicalInterface(Interface):
+    """Physical Network device
+
+    Args:
+        name: Name of the phyiscal interface
+
+    Attributes:
+        name: Name of the physical interface"""
+
+    def __init__(self, name: str, ipdb: pyroute2.ipdb.main.IPDB = IPDB, manager: Manager = None) -> None:
+        interface = ipdb.interfaces[name]
+        super().__init__(name, interface, ipdb)
+
+    def start(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
+    def tc(self, *args, **kwargs):
+        "call tc on this interface"
+        self.ipdb.nl.tc(*args, index=self.interface.index, **kwargs)
+
 class VirtualInterface(Interface):
     """Virtual Network device
 
@@ -125,7 +148,8 @@ class VirtualLink(Link):
             except KeyError:
                 continue
             break
-        self.__manager.register(self)
+        if self.__manager is not None:
+            self.__manager.register(self)
 
     def stop(self) -> None:
         """Stop interface
@@ -138,4 +162,5 @@ class VirtualLink(Link):
         self.__intf.stop()
         self.__peer = None
         self.__intf = None
-        self.__manager.unregister(self)
+        if self.__manager is not None:
+            self.__manager.unregister(self)

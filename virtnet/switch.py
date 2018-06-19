@@ -72,8 +72,18 @@ class Switch(InterfaceContainer):
         """
         if self.__intf is not None:
             raise SwitchUpException()
-        self.__intf = IPDB.create(kind="bridge", ifname=self.name).up().commit()
-        self.__manager.register(self)
+        self.__intf = self.ipdb.create(kind="bridge", ifname=self.name).up().commit()
+        if self.__manager is not None:
+            self.__manager.register(self)
+
+    @property
+    def stp(self):
+        return self.__intf.br_stp_state
+
+    @stp.setter
+    def stp(self, value):
+        with self.__intf as intf:
+            intf.br_stp_state = 0
 
     def stop(self) -> None:
         """Stop switch
@@ -85,4 +95,5 @@ class Switch(InterfaceContainer):
             raise SwitchDownException()
         self.__intf.down().remove().commit()
         self.__intf = None
-        self.__manager.unregister(self)
+        if self.__manager is not None:
+            self.__manager.unregister(self)
