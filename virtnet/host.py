@@ -131,7 +131,11 @@ class Host(InterfaceContainer):
         self.__ipdb = None
         self.__manager = manager
         self.__files = {}
+        self.__hostnames = []
         super().__init__(name)
+
+    def add_hostname(self, name: str) -> None:
+        self.__hostnames.append(name)
 
     @property
     def running(self) -> bool:
@@ -217,11 +221,11 @@ class Host(InterfaceContainer):
     def set_hosts(self, hosts):
         with self.__files["hosts"][0].open('wb') as hostfile:
             hostfile.write(DEFAULT_HOSTS)
-            for host, address in hosts:
-                hostfile.write("{}\t{}\n".format(address, host).encode())
+            for host, address, hostnames in hosts:
+                hostfile.write("{}\t{}\t{}\n".format(address, host, " ".join(hostnames)).encode())
 
     def get_hostnames(self):
-        return [(self.name, address.ip)
+        return [(self.name, address.ip, self.__hostnames)
                 for interface in self.interfaces.values()
                 for address in interface.addresses]
 
