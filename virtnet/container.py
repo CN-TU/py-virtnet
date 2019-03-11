@@ -17,6 +17,23 @@ class RouteDirection(Enum):
     NONE = 2
     INWARD = 3
     OUTWARD = 4
+    
+    @property
+    def allow_ingress(self) -> bool:
+        return self == RouteDirection.INWARD or self == RouteDirection.DEFAULT
+    
+    @property
+    def allow_egress(self) -> bool:
+        return self == RouteDirection.OUTWARD or self == RouteDirection.DEFAULT
+    
+    def reverse(self):
+        if self == RouteDirection.INWARD:
+            return RouteDirection.OUTWARD
+        elif self == RouteDirection.OUTWARD:
+            return RouteDirection.INWARD
+        else:
+            return self
+
 
 class BaseContainer(ABC):
     """BaseContainer provides base functionality like naming, starting, stopping.
@@ -117,6 +134,7 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
             except KeyError:
                 continue
             break
+        self.interface.up()
 
     @property
     def running(self) -> bool:
