@@ -44,7 +44,7 @@ DEFAULT_HOSTS = b"""127.0.0.1	localhost.localdomain	localhost
 def _setup_etc(name: str):
     hostdir = NETNS_ETC_DIR / name
     try:
-        os.makedirs(hostdir)
+        os.makedirs(str(hostdir))
     except OSError as err:
         if err.errno != errno.EEXIST:
             raise
