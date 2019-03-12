@@ -9,7 +9,7 @@ Todo:
 import pyroute2.ipdb.main
 import pyroute2.ipdb.interfaces
 from . iproute import IPDB
-from . container import Interface, Link, InterfaceContainer
+from . container import Interface, Link, InterfaceContainer, RouteDirection
 from . context import Manager
 
 class InterfaceException(Exception):
@@ -56,9 +56,9 @@ class VirtualInterface(Interface):
         name: Name of the interface.
     """
     def __init__(self, name: str, interface: pyroute2.ipdb.interfaces.Interface,
-                 ipdb: pyroute2.ipdb.main.IPDB, parent: 'VirtualLink') -> None:
+                 ipdb: pyroute2.ipdb.main.IPDB, parent: 'VirtualLink', route: RouteDirection = None) -> None:
         self.parent = parent
-        super().__init__(name, interface, ipdb)
+        super().__init__(name, interface, ipdb, route)
 
     def start(self) -> None:
         with self.interface as intf:
@@ -137,14 +137,14 @@ class VirtualLink(Link):
         while True:
             try:
                 self.__peer = VirtualInterface(self.peername, self.ipdb[1].interfaces["virt0Peer"],
-                                               self.ipdb[1], self)
+                                               self.ipdb[1], self, self.route.reverse() if self.route else None)
             except KeyError:
                 continue
             break
         while True:
             try:
                 self.__intf = VirtualInterface(self.name, self.ipdb[0].interfaces["virt0Master"],
-                                               self.ipdb[0], self)
+                                               self.ipdb[0], self, self.route)
             except KeyError:
                 continue
             break

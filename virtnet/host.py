@@ -16,8 +16,11 @@ import shutil
 from pyroute2.netns.nslink import NetNS
 from pyroute2.netns import setns
 import pyroute2.ipdb.main
+import ipaddress
+import collections
 from . iproute import IPDB
 from . container import InterfaceContainer
+from . interface import VirtualInterface
 from . context import Manager
 from . import syscalls
 
@@ -41,10 +44,20 @@ DEFAULT_HOSTS = b"""127.0.0.1	localhost.localdomain	localhost
 
 """
 
+
+def _compatible_address (src_addr, dst_addr):
+    ips = [ address.ip for address in dst_addr ]
+    nets = [ address.network for address in src_addr ]
+    try:
+        return next( ip for ip in ips for net in nets if ip in net )
+    except StopIteration:
+        return None
+    
+    
 def _setup_etc(name: str):
     hostdir = NETNS_ETC_DIR / name
     try:
-        os.makedirs(hostdir)
+        os.makedirs(str(hostdir))
     except OSError as err:
         if err.errno != errno.EEXIST:
             raise
@@ -229,6 +242,43 @@ class Host(InterfaceContainer):
                 for interface in self.interfaces.values()
                 for address in interface.addresses]
 
+    def _find_gateway(self, addrtype):
+        # search the network for any router and use it as default gateway
+        for intf in self.interfaces.values():
+            if not isinstance(intf, VirtualInterface):
+                continue
+            addresses = list(filter(lambda x: isinstance(x, addrtype), intf.addresses))
+            intf_list = set([intf])
+            visited = set([intf])
+            while intf_list:
+                peer, peerintf = intf_list.pop().peer()
+                if peer.router:
+                    gateway = _compatible_address (addresses, peerintf.addresses)
+                    if gateway:
+                        self.ipdb.routes.add({'dst': 'default', 'gateway': str(gateway)}).commit()
+                        return 
+                if peer.switch:
+                    new_intfs = set(filter(
+                        lambda x: x not in visited and isinstance(x, VirtualInterface),
+                        peer.interfaces.values()
+                    ))
+                    intf_list.extend (new_intfs)
+                    visited.extend (new_intfs)    
+                    
+        
+    def remove_prohibited_routes(self):
+        for intf in self.interfaces.values():
+            if intf.route and not intf.route.allow_egress:
+                for address in intf.addresses:
+                    net = str(ipaddress.ip_network(str(address),strict=False))
+                    self.ipdb.routes[net].remove().commit()
+                    
+    def find_routes(self):
+        if {'dst': 'default', 'family': socket.AF_INET} not in self.ipdb.routes:
+            self._find_gateway(ipaddress.IPv4Interface)
+        if {'dst': 'default', 'family': socket.AF_INET6} not in self.ipdb.routes:
+            self._find_gateway(ipaddress.IPv6Interface)
+            
 class Router(Host):
     """Router extends Host with some additional settings a router needs
 
@@ -240,7 +290,7 @@ class Router(Host):
     def __init__(self, *arg, **kwarg):
         super().__init__(*arg, **kwarg)
         # no simple way to open files in the network namespace :(
-        self.Popen(["sysctl", "-w", "net.ipv4.ip_forward=1",
+        self.Popen(["sysctl", "-w", "net.ipv4.ip_forward=1", "net.ipv6.conf.all.forwarding=1",
                     "net.ipv4.conf.default.rp_filter=0"], stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL).wait()
 
@@ -248,3 +298,42 @@ class Router(Host):
     def router(self) -> bool:
         """Return true if container is a router"""
         return True
+        
+    def _bfs(self, addrtype):
+        node_list = collections.deque([(self,None,None)])
+        visited = set([self])
+        
+        while node_list:
+            node, routerAddresses, firsthop = node_list.pop()
+            
+            for intf in node.interfaces.values():
+                if intf.route and not intf.route.allow_egress:
+                    continue
+
+                if node.router:
+                    routerAddresses = list(filter(lambda x: isinstance(x, addrtype), intf.addresses))
+                    for address in routerAddresses:
+                        net = str(ipaddress.ip_network(str(address),strict=False))
+                        if net not in self.ipdb.routes and node != self:
+                            self.ipdb.routes.add({'dst': net, 'gateway': firsthop}).commit()
+                if not isinstance(intf, VirtualInterface):
+                    continue
+                peer, peerintf = intf.peer()
+                if peer in visited or not (peer.router or peer.switch):
+                    continue
+                if peer.switch:
+                    # append to right side of deque to find routers on local subnet first
+                    node_list.append((peer, routerAddresses, firsthop))
+                else:
+                    # require address to be in the same subnet as previous router
+                    address = _compatible_address(routerAddresses, peerintf.addresses)
+                    if not address:
+                        continue
+                    routeFirsthop = firsthop if firsthop else str(address)
+                    node_list.appendleft((peer, None, routeFirsthop))
+                visited.add(peer)
+        
+    def find_routes(self):
+        self._bfs (ipaddress.IPv4Interface)
+        self._bfs (ipaddress.IPv6Interface)
+

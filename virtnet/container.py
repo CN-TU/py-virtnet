@@ -4,7 +4,7 @@ This module build the base for every device and all the interfaces.
 """
 
 from typing import Union, Sequence, Type, List, Tuple
-from enum import Enum, auto
+from enum import Enum
 import ipaddress
 import collections
 from abc import ABC, abstractmethod
@@ -12,11 +12,28 @@ import pyroute2.ipdb.main
 from . address import Network
 
 class RouteDirection(Enum):
-    """Route directon behaviour on connect"""
-    DEFAULT = auto()
-    NONE = auto()
-    INWARD = auto()
-    OUTWARD = auto()
+    """Route direction behaviour on connect"""
+    DEFAULT = 1
+    NONE = 2
+    INWARD = 3
+    OUTWARD = 4
+    
+    @property
+    def allow_ingress(self) -> bool:
+        return self == RouteDirection.INWARD or self == RouteDirection.DEFAULT
+    
+    @property
+    def allow_egress(self) -> bool:
+        return self == RouteDirection.OUTWARD or self == RouteDirection.DEFAULT
+    
+    def reverse(self):
+        if self == RouteDirection.INWARD:
+            return RouteDirection.OUTWARD
+        elif self == RouteDirection.OUTWARD:
+            return RouteDirection.INWARD
+        else:
+            return self
+
 
 class BaseContainer(ABC):
     """BaseContainer provides base functionality like naming, starting, stopping.
@@ -117,6 +134,7 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
             except KeyError:
                 continue
             break
+        self.interface.up()
 
     @property
     def running(self) -> bool:
