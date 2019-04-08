@@ -10,6 +10,8 @@ import collections
 from abc import ABC, abstractmethod
 import pyroute2.ipdb.main
 from . address import Network
+from . iproute import IPDB
+import os
 
 class RouteDirection(Enum):
     """Route direction behaviour on connect"""
@@ -125,8 +127,12 @@ class Interface(BaseContainer): # pylint: disable=abstract-method
     def move_to(self, container):
         """Move interface to container"""
         with self.interface as intf:
-            intf.net_ns_fd = container.ipdb.nl.netns
-        container.attach_interface(self)
+                if container.ipdb is IPDB:
+                    # move interface back to physical host
+                    intf.net_ns_pid = os.getpid()
+                else:
+                    intf.net_ns_fd = container.ipdb.nl.netns
+                    container.attach_interface(self)
         self.ipdb = container.ipdb
         while True:
             try:
