@@ -110,6 +110,13 @@ def get_parameters(kwarg):
 
     if 'dist' in kwarg:
         opts['attrs'].append(['TCA_NETEM_DELAY_DIST', make_inv_cdf(kwarg['dist'])])
+        
+    if 'rate' in kwarg:
+        opts['attrs'].append(['TCA_NETEM_RATE',
+                             {'rate': kwarg['rate'],
+                              'packet_overhead': kwarg.get('packet_overhead', 0),
+                              'cell_size': kwarg.get('cell_size', 0),
+                              'cell_overhead': kwarg.get('cell_overhead', 0)}])
     return opts
 
 
@@ -120,7 +127,7 @@ class options(nla):
                ('TCA_NETEM_REORDER', 'netem_reorder'),
                ('TCA_NETEM_CORRUPT', 'netem_corrupt'),
                ('TCA_NETEM_LOSS', 'none'),
-               ('TCA_NETEM_RATE', 'none'))
+               ('TCA_NETEM_RATE', 'netem_rate'))
 
     fields = (('delay', 'I'),
               ('limit', 'I'),
@@ -144,3 +151,11 @@ class options(nla):
         '''corruption has probability and correlation'''
         fields = (('prob_corrupt', 'I'),
                   ('corr_corrupt', 'I'))
+
+    class netem_rate(nla):
+        '''rate (bytes/s), cell size and packet/cell overhead'''
+        fields = (('rate', 'I'),
+                  ('packet_overhead', 'i'),
+                  ('cell_size', 'I'),
+                  ('cell_overhead', 'i'))
+                  
