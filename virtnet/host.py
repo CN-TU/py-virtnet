@@ -85,9 +85,11 @@ class PhysicalHost(InterfaceContainer):
     Attributes:
         name: Name of the host.
     """
-    def __init__(self, name: str = socket.gethostname(), manager: Manager = None) -> None:
+    def __init__(self, name: str = None, manager: Manager = None) -> None:
         self.__ns = None
         self.__ipdb = IPDB
+        if name is None:
+            name = socket.gethostname()
         super().__init__(name)
 
     @property
