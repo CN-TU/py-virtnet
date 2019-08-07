@@ -11,12 +11,12 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='virtnet',
-    version='0.0.1',
+    version='0.0.2',
 
     description='A library for building testnetworks',
     long_description=long_description,
 
-    url='',
+    url='https://github.com/CN-TU/py-virtnet',
 
     author='Gernot Vormayr',
     author_email='gernot.vormayr@nt.tuwien.ac.at',
