@@ -10,23 +10,33 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='virtnet',
-    version='0.0.2',
+    name='py-virtnet',
+    version='1.0.0',
 
     description='A library for building testnetworks',
     long_description=long_description,
+    long_description_content_type='text/markdown; charset=UTF-8',
+
+    python_requires=">=3.5",
 
     url='https://github.com/CN-TU/py-virtnet',
 
     author='Gernot Vormayr',
-    author_email='gernot.vormayr@nt.tuwien.ac.at',
+    author_email='gvormayr@gmail.com',
 
-    license='MIT',
+    license='GPLv2',
 
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
 
         'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+
+        'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
+
+        'Operating System :: POSIX :: Linux',
+
+        'Topic :: System :: Networking',
 
         'Programming Language :: Python :: 3',
     ],
