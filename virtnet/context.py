@@ -32,8 +32,6 @@ class Manager(object):
     def simple_route(self) -> None:
         "Add routes between routers"
         for host in filter(lambda x: hasattr(x, 'find_routes'), self.registered):
-            host.remove_prohibited_routes()
-        for host in filter(lambda x: hasattr(x, 'find_routes'), self.registered):
             host.find_routes()
 
     def __enter__(self) -> 'Manager':

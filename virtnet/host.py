@@ -267,14 +267,6 @@ class Host(InterfaceContainer):
                     intf_list.extend (new_intfs)
                     visited.extend (new_intfs)    
                     
-        
-    def remove_prohibited_routes(self):
-        for intf in self.interfaces.values():
-            if intf.route and not intf.route.allow_egress:
-                for address in intf.addresses:
-                    net = str(ipaddress.ip_network(str(address),strict=False))
-                    self.ipdb.routes[net].remove().commit()
-                    
     def find_routes(self):
         if {'dst': 'default', 'family': socket.AF_INET} not in self.ipdb.routes:
             self._find_gateway(ipaddress.IPv4Interface)
@@ -309,15 +301,14 @@ class Router(Host):
             node, routerAddresses, firsthop = node_list.pop()
             
             for intf in node.interfaces.values():
-                if intf.route and not intf.route.allow_egress:
-                    continue
-
                 if node.router:
                     routerAddresses = list(filter(lambda x: isinstance(x, addrtype), intf.addresses))
                     for address in routerAddresses:
                         net = str(ipaddress.ip_network(str(address),strict=False))
                         if net not in self.ipdb.routes and node != self:
                             self.ipdb.routes.add({'dst': net, 'gateway': firsthop}).commit()
+                if intf.route and not intf.route.allow_egress:
+                    continue
                 if not isinstance(intf, VirtualInterface):
                     continue
                 peer, peerintf = intf.peer()
