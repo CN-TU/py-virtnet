@@ -13,7 +13,7 @@ import pathlib
 import os
 import errno
 import shutil
-from pyroute2.netns.nslink import NetNS
+from pyroute2.nslink import NetNS
 from pyroute2.netns import setns
 import pyroute2.ipdb.main
 import ipaddress
